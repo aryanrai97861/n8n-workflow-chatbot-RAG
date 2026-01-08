@@ -1,12 +1,14 @@
 from .text_extractor import TextExtractor
 from .embedding import EmbeddingService
+from .local_embedding import LocalEmbeddingService
 from .vector_store import VectorStoreService
 from .llm import LLMService
 from .web_search import WebSearchService
 
 __all__ = [
     "TextExtractor",
-    "EmbeddingService", 
+    "EmbeddingService",
+    "LocalEmbeddingService",
     "VectorStoreService",
     "LLMService",
     "WebSearchService"

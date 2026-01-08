@@ -8,7 +8,7 @@ import time
 from database import get_db
 from models.document import Document
 from services.text_extractor import TextExtractor
-from services.embedding import EmbeddingService
+from services.local_embedding import LocalEmbeddingService
 from services.vector_store import VectorStoreService
 from config import settings
 
@@ -69,9 +69,9 @@ async def upload_document(
         safe_remove_file(file_path)
         raise HTTPException(status_code=500, detail=f"Error extracting text: {str(e)}")
     
-    # Generate embeddings
+    # Generate embeddings using LOCAL model (no API key required, no rate limits!)
     try:
-        embedding_service = EmbeddingService(api_key=api_key)
+        embedding_service = LocalEmbeddingService()
         embeddings = embedding_service.generate_embeddings(chunks)
     except Exception as e:
         safe_remove_file(file_path)

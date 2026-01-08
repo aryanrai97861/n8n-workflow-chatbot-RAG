@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional
-from services.embedding import EmbeddingService
+from services.local_embedding import LocalEmbeddingService
 from services.vector_store import VectorStoreService
 from services.llm import LLMService
 from services.web_search import WebSearchService
@@ -9,7 +9,7 @@ class WorkflowExecutor:
     """Executes a workflow based on node connections"""
     
     def __init__(self):
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = LocalEmbeddingService()
         self.vector_store = VectorStoreService()
         self.llm_service = LLMService()
         self.web_search_service = WebSearchService()
