@@ -11,15 +11,19 @@ class TextExtractor:
     def extract_from_pdf(self, file_path: str) -> str:
         """Extract text from a PDF file"""
         text_content = []
+        doc = None
         
         try:
             doc = fitz.open(file_path)
-            for page_num in range(len(doc)):
-                page = doc.load_page(page_num)
+            page_count = doc.page_count
+            for page_num in range(page_count):
+                page = doc[page_num]
                 text_content.append(page.get_text())
-            doc.close()
         except Exception as e:
             raise Exception(f"Error extracting text from PDF: {str(e)}")
+        finally:
+            if doc:
+                doc.close()
         
         return "\n".join(text_content)
     

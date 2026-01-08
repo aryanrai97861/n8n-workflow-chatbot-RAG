@@ -25,7 +25,7 @@ export default function LLMEngineNode({ data, selected }) {
         <span className="node-title">{data.label || 'LLM Engine'}</span>
       </div>
       <div className="node-body">
-        <p>Model: {data.model || 'Gemini 1.5 Flash'}</p>
+      <p>Model: {data.model || 'Gemini 2.0 Flash'}</p>
         {data.enableWebSearch && <p>🔍 Web Search enabled</p>}
       </div>
       <Handle

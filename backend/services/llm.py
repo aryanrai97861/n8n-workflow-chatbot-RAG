@@ -15,9 +15,9 @@ class LLMService:
     def _configure(self):
         """Configure the Gemini client"""
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
     
-    def configure(self, api_key: str, model_name: str = 'gemini-1.5-flash'):
+    def configure(self, api_key: str, model_name: str = 'gemini-2.0-flash'):
         """Configure the service with a new API key and model"""
         self.api_key = api_key
         genai.configure(api_key=api_key)

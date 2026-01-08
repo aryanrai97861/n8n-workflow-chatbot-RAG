@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 import os
 import uuid
+import time
 
 from database import get_db
 from models.document import Document
@@ -15,6 +16,20 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 # Ensure upload directory exists
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+
+
+def safe_remove_file(file_path: str, retries: int = 3):
+    """Safely remove a file with retry logic for Windows"""
+    for i in range(retries):
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            return
+        except PermissionError:
+            if i < retries - 1:
+                time.sleep(0.5)  # Wait before retry
+            else:
+                pass  # Give up silently
 
 
 @router.post("/upload")
@@ -51,7 +66,7 @@ async def upload_document(
         text_content = extractor.extract(file_path)
         chunks = extractor.chunk_text(text_content)
     except Exception as e:
-        os.remove(file_path)
+        safe_remove_file(file_path)
         raise HTTPException(status_code=500, detail=f"Error extracting text: {str(e)}")
     
     # Generate embeddings
@@ -59,7 +74,7 @@ async def upload_document(
         embedding_service = EmbeddingService(api_key=api_key)
         embeddings = embedding_service.generate_embeddings(chunks)
     except Exception as e:
-        os.remove(file_path)
+        safe_remove_file(file_path)
         raise HTTPException(status_code=500, detail=f"Error generating embeddings: {str(e)}")
     
     # Store in vector database
@@ -73,7 +88,7 @@ async def upload_document(
             metadatas=[{"chunk_index": i, "filename": file.filename} for i in range(len(chunks))]
         )
     except Exception as e:
-        os.remove(file_path)
+        safe_remove_file(file_path)
         raise HTTPException(status_code=500, detail=f"Error storing embeddings: {str(e)}")
     
     # Save to database
@@ -88,7 +103,7 @@ async def upload_document(
         db.commit()
         db.refresh(document)
     except Exception as e:
-        os.remove(file_path)
+        safe_remove_file(file_path)
         raise HTTPException(status_code=500, detail=f"Error saving to database: {str(e)}")
     
     return {

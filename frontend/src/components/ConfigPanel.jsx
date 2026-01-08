@@ -133,10 +133,10 @@ export default function ConfigPanel({ selectedNode, onNodeUpdate, config, onConf
         <label className="form-label">Model</label>
         <select
           className="form-input form-select"
-          value={data.model || 'gemini-1.5-flash'}
+          value={data.model || 'gemini-2.0-flash'}
           onChange={(e) => handleChange('model', e.target.value)}
         >
-          <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+          <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
           <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
           <option value="gemini-pro">Gemini Pro</option>
         </select>
