@@ -108,4 +108,14 @@ export const chatApi = {
     });
     return response.json();
   },
+  
+  getLogs: async (executionId) => {
+    const response = await fetch(`${API_BASE_URL}/chat/logs/${executionId}`);
+    return response.json();
+  },
+  
+  getWorkflowLogs: async (workflowId, limit = 50) => {
+    const response = await fetch(`${API_BASE_URL}/chat/logs/workflow/${workflowId}?limit=${limit}`);
+    return response.json();
+  },
 };

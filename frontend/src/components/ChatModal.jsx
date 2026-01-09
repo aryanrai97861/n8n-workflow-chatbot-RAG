@@ -6,6 +6,8 @@ export default function ChatModal({ isOpen, onClose, workflow, config, workflowI
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [executionLogs, setExecutionLogs] = useState([]);
+  const [showLogs, setShowLogs] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -27,6 +29,8 @@ export default function ChatModal({ isOpen, onClose, workflow, config, workflowI
   useEffect(() => {
     if (!isOpen) {
       setHistoryLoaded(false);
+      setExecutionLogs([]);
+      setShowLogs(false);
     }
   }, [isOpen]);
 
@@ -49,6 +53,7 @@ export default function ChatModal({ isOpen, onClose, workflow, config, workflowI
 
     const userMessage = input.trim();
     setInput('');
+    setExecutionLogs([]);
     
     // Add user message to state
     const updatedMessages = [...messages, { role: 'user', content: userMessage }];
@@ -59,6 +64,13 @@ export default function ChatModal({ isOpen, onClose, workflow, config, workflowI
       // Send the current message history (excluding the just-added user message) as chat_history
       // Also pass workflowId to persist the chat
       const result = await chatApi.execute(workflow, userMessage, config, messages, workflowId);
+      
+      // Store execution logs
+      if (result.logs && result.logs.length > 0) {
+        setExecutionLogs(result.logs);
+        setShowLogs(true);
+      }
+      
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: result.response },
@@ -80,8 +92,39 @@ export default function ChatModal({ isOpen, onClose, workflow, config, workflowI
     try {
       await chatApi.clearHistory(workflowId);
       setMessages([]);
+      setExecutionLogs([]);
     } catch (error) {
       console.error('Failed to clear history:', error);
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'started':
+        return '🔄';
+      case 'completed':
+        return '✅';
+      case 'error':
+        return '❌';
+      case 'info':
+        return 'ℹ️';
+      default:
+        return '•';
+    }
+  };
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case 'started':
+        return 'log-status-started';
+      case 'completed':
+        return 'log-status-completed';
+      case 'error':
+        return 'log-status-error';
+      case 'info':
+        return 'log-status-info';
+      default:
+        return '';
     }
   };
 
@@ -98,6 +141,15 @@ export default function ChatModal({ isOpen, onClose, workflow, config, workflowI
             Chat with GenAI Stack
           </h3>
           <div className="chat-header-actions">
+            {executionLogs.length > 0 && (
+              <button 
+                className={`btn-toggle-logs ${showLogs ? 'active' : ''}`}
+                onClick={() => setShowLogs(!showLogs)} 
+                title="Toggle execution logs"
+              >
+                📊
+              </button>
+            )}
             {workflowId && messages.length > 0 && (
               <button className="btn-clear-history" onClick={handleClearHistory} title="Clear history">
                 🗑
@@ -107,38 +159,76 @@ export default function ChatModal({ isOpen, onClose, workflow, config, workflowI
           </div>
         </div>
 
-        <div className="chat-messages">
-          {messages.length === 0 && (
-            <div className="chat-message assistant">
-              <div className="message-avatar assistant">🤖</div>
-              <div className="message-content">
-                Hello! I'm ready to help you with your workflow. Ask me anything!
+        <div className="chat-content-wrapper">
+          {/* Execution Logs Panel */}
+          {showLogs && executionLogs.length > 0 && (
+            <div className="execution-logs-panel">
+              <div className="logs-header">
+                <span>Execution Logs</span>
+                <button className="logs-close" onClick={() => setShowLogs(false)}>×</button>
+              </div>
+              <div className="logs-content">
+                {executionLogs.map((log, index) => (
+                  <div key={index} className={`log-entry ${getStatusClass(log.status)}`}>
+                    <div className="log-step-header">
+                      <span className="log-icon">{getStatusIcon(log.status)}</span>
+                      <span className="log-step-name">{log.step_name}</span>
+                      {log.metadata?.duration_ms && (
+                        <span className="log-duration">{log.metadata.duration_ms}ms</span>
+                      )}
+                    </div>
+                    <div className="log-message">{log.message}</div>
+                    {log.metadata && Object.keys(log.metadata).filter(k => k !== 'duration_ms').length > 0 && (
+                      <div className="log-metadata">
+                        {Object.entries(log.metadata)
+                          .filter(([key]) => key !== 'duration_ms')
+                          .map(([key, value]) => (
+                            <span key={key} className="log-meta-item">
+                              {key}: {typeof value === 'object' ? JSON.stringify(value) : value}
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
-          
-          {messages.map((message, index) => (
-            <div key={index} className={`chat-message ${message.role}`}>
-              <div className={`message-avatar ${message.role}`}>
-                {message.role === 'user' ? '👤' : '🤖'}
-              </div>
-              <div className="message-content">{message.content}</div>
-            </div>
-          ))}
-          
-          {loading && (
-            <div className="chat-message assistant">
-              <div className="message-avatar assistant">🤖</div>
-              <div className="message-content">
-                <div className="loading-dots">
-                  <span></span>
-                  <span></span>
-                  <span></span>
+
+          {/* Chat Messages */}
+          <div className="chat-messages">
+            {messages.length === 0 && (
+              <div className="chat-message assistant">
+                <div className="message-avatar assistant">🤖</div>
+                <div className="message-content">
+                  Hello! I'm ready to help you with your workflow. Ask me anything!
                 </div>
               </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
+            )}
+            
+            {messages.map((message, index) => (
+              <div key={index} className={`chat-message ${message.role}`}>
+                <div className={`message-avatar ${message.role}`}>
+                  {message.role === 'user' ? '👤' : '🤖'}
+                </div>
+                <div className="message-content">{message.content}</div>
+              </div>
+            ))}
+            
+            {loading && (
+              <div className="chat-message assistant">
+                <div className="message-avatar assistant">🤖</div>
+                <div className="message-content">
+                  <div className="loading-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
         <form className="chat-input-container" onSubmit={handleSubmit}>

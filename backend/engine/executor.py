@@ -3,6 +3,7 @@ from services.local_embedding import LocalEmbeddingService
 from services.vector_store import VectorStoreService
 from services.llm import LLMService
 from services.web_search import WebSearchService
+from services.execution_logger import ExecutionLogger
 
 
 class WorkflowExecutor:
@@ -14,24 +15,36 @@ class WorkflowExecutor:
         self.llm_service = LLMService()
         self.web_search_service = WebSearchService()
     
-    def execute(self, workflow_definition: Dict[str, Any], user_query: str, config: Dict[str, Any], chat_history: Optional[List[Dict]] = None) -> str:
+    def execute(
+        self, 
+        workflow_definition: Dict[str, Any], 
+        user_query: str, 
+        config: Dict[str, Any], 
+        chat_history: Optional[List[Dict]] = None,
+        execution_id: Optional[str] = None,
+        workflow_id: Optional[int] = None
+    ) -> Dict[str, Any]:
         """
-        Execute a workflow and return the final response
+        Execute a workflow and return the final response with logs
         
         Args:
             workflow_definition: The workflow containing nodes and edges
             user_query: The user's input query
             config: Configuration including API keys and other settings
             chat_history: Previous conversation messages for context
+            execution_id: UUID for grouping execution logs
+            workflow_id: ID of the workflow being executed
         
         Returns:
-            The final response string
+            Dict containing 'response' and 'logs'
         """
+        # Initialize logger
+        logger = ExecutionLogger(execution_id or "unknown", workflow_id)
+        
         nodes = workflow_definition.get("nodes", [])
         edges = workflow_definition.get("edges", [])
         
-        print(f"[Executor] Starting workflow execution with query: {user_query[:100]}...")
-        print(f"[Executor] Chat history has {len(chat_history) if chat_history else 0} messages")
+        logger.start_step("Workflow", f"Starting workflow execution with query: {user_query[:50]}...")
         
         # Build node map and adjacency list
         node_map = {node["id"]: node for node in nodes}
@@ -39,12 +52,13 @@ class WorkflowExecutor:
         
         # Find the execution order
         execution_order = self._get_execution_order(nodes, edges)
-        print(f"[Executor] Execution order: {execution_order}")
+        logger.info("Workflow", f"Execution order determined: {len(execution_order)} nodes", 
+                   {"node_count": len(execution_order)})
         
         # Execute nodes in order
         context = {
             "query": user_query,
-            "kb_contexts": [],  # Changed to list to support multiple KBs
+            "kb_contexts": [],
             "web_context": None,
             "response": None,
             "chat_history": chat_history or []
@@ -57,43 +71,62 @@ class WorkflowExecutor:
             
             node_type = node.get("type")
             node_data = node.get("data", {})
-            print(f"[Executor] Processing node: {node_type} (id: {node_id})")
             
             if node_type == "userQuery":
-                # User query is the entry point - capture query template if provided
+                logger.start_step("User Query", "Processing user input")
                 query_template = node_data.get("queryTemplate", "")
                 if query_template:
                     context["query_template"] = query_template
-                    print(f"[Executor] Query template found: {query_template[:50]}...")
+                    logger.info("User Query", "Query template applied", {"template_length": len(query_template)})
+                logger.complete_step("User Query", f"Query received: {user_query[:50]}...")
             
             elif node_type == "knowledgeBase":
-                # Accumulate context from ALL knowledge bases
+                kb_name = node_data.get("filename", "Unknown")
+                logger.start_step("Knowledge Base", f"Querying: {kb_name}")
+                
                 kb_context = self._execute_knowledge_base(
                     node_data, 
                     context["query"],
-                    config
+                    config,
+                    logger
                 )
                 if kb_context:
                     context["kb_contexts"].append({
-                        "filename": node_data.get("filename", "Unknown"),
+                        "filename": kb_name,
                         "content": kb_context
                     })
-                    print(f"[Executor] KB context from '{node_data.get('filename', 'Unknown')}': {len(kb_context)} chars")
+                    logger.complete_step("Knowledge Base", f"Retrieved context from {kb_name}", 
+                                        {"context_length": len(kb_context)})
                 else:
-                    print(f"[Executor] WARNING: No context from KB '{node_data.get('filename', 'Unknown')}'!")
+                    logger.error_step("Knowledge Base", f"No context retrieved from {kb_name}")
             
             elif node_type == "llmEngine":
+                model = node_data.get("model", "gemini-2.5-flash")
+                logger.start_step("LLM Engine", f"Generating response using {model}")
+                
                 context["response"] = self._execute_llm_engine(
                     node_data,
                     context,
-                    config
+                    config,
+                    logger
                 )
+                
+                if context["response"] and not context["response"].startswith("Error"):
+                    logger.complete_step("LLM Engine", "Response generated successfully",
+                                        {"response_length": len(context["response"]), "model": model})
+                else:
+                    logger.error_step("LLM Engine", context["response"] or "Failed to generate response")
             
             elif node_type == "output":
-                # Output node - just return the response
-                pass
+                logger.start_step("Output", "Preparing final response")
+                logger.complete_step("Output", "Response ready for display")
         
-        return context.get("response", "No response generated")
+        logger.complete_step("Workflow", "Workflow execution completed")
+        
+        return {
+            "response": context.get("response", "No response generated"),
+            "logs": logger.get_logs()
+        }
     
     def _build_adjacency_list(self, edges: List[Dict]) -> Dict[str, List[str]]:
         """Build adjacency list from edges"""
@@ -108,7 +141,6 @@ class WorkflowExecutor:
     
     def _get_execution_order(self, nodes: List[Dict], edges: List[Dict]) -> List[str]:
         """Determine execution order using topological sort"""
-        # Build in-degree map
         in_degree = {node["id"]: 0 for node in nodes}
         adjacency = {}
         
@@ -120,7 +152,6 @@ class WorkflowExecutor:
                 adjacency[source] = []
             adjacency[source].append(target)
         
-        # Start with nodes that have no incoming edges
         queue = [node_id for node_id, degree in in_degree.items() if degree == 0]
         execution_order = []
         
@@ -139,56 +170,46 @@ class WorkflowExecutor:
         self, 
         node_data: Dict[str, Any], 
         query: str,
-        config: Dict[str, Any]
+        config: Dict[str, Any],
+        logger: ExecutionLogger
     ) -> Optional[str]:
         """Execute knowledge base retrieval"""
         collection_name = node_data.get("collectionName")
-        api_key = node_data.get("apiKey") or config.get("geminiApiKey")
-        
-        print(f"[KB] Node data received: {node_data}")
-        print(f"[KB] Collection name: {collection_name}")
         
         if not collection_name:
-            print("[KB] ERROR: No collection name configured in Knowledge Base node!")
+            logger.error_step("Knowledge Base", "No collection name configured")
             return None
         
         try:
-            # LocalEmbeddingService uses local models, no API key needed
-            # Generate query embedding
-            print(f"[KB] Generating embedding for query: {query[:50]}...")
+            logger.info("Knowledge Base", f"Generating embedding for query")
             query_embedding = self.embedding_service.generate_query_embedding(query)
-            print(f"[KB] Embedding generated, length: {len(query_embedding)}")
+            logger.info("Knowledge Base", f"Embedding generated", {"embedding_dim": len(query_embedding)})
             
-            # Query vector store
-            print(f"[KB] Querying ChromaDB collection: {collection_name}")
+            logger.info("Knowledge Base", f"Querying ChromaDB collection: {collection_name}")
             results = self.vector_store.query(
                 collection_name=collection_name,
                 query_embedding=query_embedding,
                 n_results=5
             )
             
-            # Format context from results
             documents = results.get("documents", [[]])[0]
-            print(f"[KB] Retrieved {len(documents)} document chunks")
+            logger.info("Knowledge Base", f"Retrieved {len(documents)} chunks", {"chunk_count": len(documents)})
             
             if documents:
                 context = "\n\n---\n\n".join(documents)
-                print(f"[KB] Context length: {len(context)} chars")
                 return context
             
-            print("[KB] No documents found in collection!")
             return None
         except Exception as e:
-            print(f"[KB] ERROR during retrieval: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.error_step("Knowledge Base", f"Retrieval error: {str(e)}")
             return None
     
     def _execute_llm_engine(
         self,
         node_data: Dict[str, Any],
         context: Dict[str, Any],
-        config: Dict[str, Any]
+        config: Dict[str, Any],
+        logger: ExecutionLogger
     ) -> str:
         """Execute LLM generation"""
         api_key = node_data.get("apiKey") or config.get("geminiApiKey")
@@ -198,13 +219,11 @@ class WorkflowExecutor:
         enable_web_search = node_data.get("enableWebSearch", False)
         serp_api_key = node_data.get("serpApiKey") or config.get("serpApiKey")
         
-        # Configure LLM service
         self.llm_service.configure(api_key, model)
         
         # Prepare context - combine ALL knowledge base contexts
         combined_context = ""
         
-        # Add all knowledge base contexts with labels
         kb_contexts = context.get("kb_contexts", [])
         if kb_contexts:
             combined_context += "=== KNOWLEDGE BASE CONTEXTS ===\n\n"
@@ -212,34 +231,33 @@ class WorkflowExecutor:
                 combined_context += f"--- Document {i}: {kb['filename']} ---\n"
                 combined_context += kb['content']
                 combined_context += "\n\n"
-            print(f"[Executor] Combined {len(kb_contexts)} KB(s) into context, total: {len(combined_context)} chars")
+            logger.info("LLM Engine", f"Using context from {len(kb_contexts)} knowledge base(s)",
+                       {"kb_count": len(kb_contexts), "context_length": len(combined_context)})
         
         # Web search if enabled
         web_results = ""
         if enable_web_search and serp_api_key:
             try:
+                logger.info("LLM Engine", "Performing web search")
                 self.web_search_service.configure(serp_api_key=serp_api_key)
                 web_results = self.web_search_service.search(context["query"])
+                logger.info("LLM Engine", "Web search completed", {"results_length": len(web_results)})
             except Exception as e:
-                print(f"Web search error: {str(e)}")
+                logger.error_step("LLM Engine", f"Web search failed: {str(e)}")
         
-        # Build system prompt
         system_prompt = prompt_template if prompt_template else None
-        
-        # Get chat history and query template from context
         chat_history = context.get("chat_history", [])
         query_template = context.get("query_template", "")
         
-        # Combine query template with user query if template exists
         final_query = context["query"]
         if query_template:
-            # Add template context to the combined context
             combined_context = f"=== USER QUERY TEMPLATE ===\n{query_template}\n\n{combined_context}"
-            print(f"[Executor] Added query template to context")
         
-        print(f"[Executor] LLM Engine - KBs: {len(kb_contexts)}, Web results: {'Yes' if web_results else 'No'}, Chat history: {len(chat_history)} msgs, Template: {'Yes' if query_template else 'No'}")
+        logger.info("LLM Engine", f"Sending request to {model}", 
+                   {"has_context": bool(combined_context), 
+                    "has_web_results": bool(web_results),
+                    "chat_history_length": len(chat_history)})
         
-        # Generate response
         try:
             if web_results:
                 response = self.llm_service.generate_with_web_context(
