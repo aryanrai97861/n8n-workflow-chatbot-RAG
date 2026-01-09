@@ -29,12 +29,10 @@ export default function OutputNode({ data, selected }) {
       </div>
       <div className="node-body">
         <p className="node-description">Output of the result nodes as text</p>
-        <div className="output-preview">
-          <label>Output Text</label>
-          <div className="output-preview-box">
-            {data.lastResponse || 'Output will be generated based on query'}
-          </div>
-        </div>
+        <div className="output-text-label">Output Text</div>
+        <p className="output-placeholder">
+          {data.lastResponse || 'Output will be generated based on query'}
+        </p>
       </div>
     </div>
   );

@@ -424,6 +424,17 @@ body {
   font-weight: 500;
 }
 
+/* Override React Flow Default Node Styles */
+.react-flow__node-output,
+.react-flow__node-output.selected,
+.react-flow__node-output:focus,
+.react-flow__node-output:focus-visible {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
 /* Custom Nodes */
 .custom-node {
   background: var(--bg-secondary);
@@ -533,29 +544,19 @@ body {
 }
 
 /* Output Preview in Output Node */
-.output-preview {
-  margin-top: 8px;
-}
-
-.output-preview label {
+.output-text-label {
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
-  display: block;
+  margin-top: 8px;
   margin-bottom: 4px;
 }
 
-.output-preview-box {
-  padding: 8px 12px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+.output-placeholder {
   font-size: 11px;
   color: var(--text-light);
-  min-height: 40px;
-  max-height: 60px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.4;
+  margin: 0;
 }
 
 /* KB File Info */
