@@ -4,4 +4,6 @@ dist
 venv
 __pycache__
 chroma_data
-uploads
+uploads/
+**/uploads/
+uploads/**
