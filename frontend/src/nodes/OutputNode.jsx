@@ -29,10 +29,16 @@ export default function OutputNode({ data, selected }) {
       </div>
       <div className="node-body">
         <p className="node-description">Output of the result nodes as text</p>
-        <div className="output-text-label">Output Text</div>
-        <p className="output-placeholder">
-          {data.lastResponse || 'Output will be generated based on query'}
-        </p>
+        <div className="node-input-preview">
+          <label>Output Text</label>
+          <div className="query-preview-box">
+            {data.lastResponse 
+              ? (data.lastResponse.length > 50 
+                  ? data.lastResponse.substring(0, 50) + '...' 
+                  : data.lastResponse)
+              : 'Output will be generated based on query'}
+          </div>
+        </div>
       </div>
     </div>
   );

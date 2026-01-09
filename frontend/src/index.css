@@ -518,6 +518,7 @@ body {
   font-size: 11px;
   color: var(--text-light);
   margin-bottom: 8px;
+  text-align: left;
 }
 
 /* Query Preview in User Query Node */
@@ -531,6 +532,7 @@ body {
   color: var(--text-secondary);
   display: block;
   margin-bottom: 4px;
+  text-align: left;
 }
 
 .query-preview-box {
