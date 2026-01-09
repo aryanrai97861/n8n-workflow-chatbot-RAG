@@ -3,7 +3,18 @@ import { Handle, Position } from '@xyflow/react';
 
 export default function OutputNode({ data, selected }) {
   return (
-    <div className={`custom-node ${selected ? 'selected' : ''}`}>
+    <div className={`custom-node output-node ${selected ? 'selected' : ''}`}>
+      {data.onDelete && (
+        <button 
+          className="node-delete-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onDelete();
+          }}
+        >
+          ×
+        </button>
+      )}
       <Handle
         type="target"
         position={Position.Left}
@@ -17,7 +28,13 @@ export default function OutputNode({ data, selected }) {
         <span className="node-title">{data.label || 'Output'}</span>
       </div>
       <div className="node-body">
-        <p>Final response display</p>
+        <p className="node-description">Output of the result nodes as text</p>
+        <div className="output-preview">
+          <label>Output Text</label>
+          <div className="output-preview-box">
+            {data.lastResponse || 'Output will be generated based on query'}
+          </div>
+        </div>
       </div>
     </div>
   );

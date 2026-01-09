@@ -4,9 +4,6 @@ import {
   Background,
   Controls,
   MiniMap,
-  addEdge,
-  useNodesState,
-  useEdgesState,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -32,7 +29,8 @@ export default function WorkflowCanvas({
   onEdgesChange, 
   onConnect,
   onNodeSelect,
-  onNodeDataUpdate 
+  onNodeDataUpdate,
+  onDeleteNode
 }) {
   const reactFlowWrapper = useRef(null);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
@@ -57,16 +55,20 @@ export default function WorkflowCanvas({
         y: event.clientY,
       });
 
+      const nodeId = getId();
       const newNode = {
-        id: getId(),
+        id: nodeId,
         type,
         position,
-        data: { label: getDefaultLabel(type) },
+        data: { 
+          label: getDefaultLabel(type),
+          onDelete: () => onDeleteNode(nodeId),
+        },
       };
 
       onNodesChange([{ type: 'add', item: newNode }]);
     },
-    [reactFlowInstance, onNodesChange]
+    [reactFlowInstance, onNodesChange, onDeleteNode]
   );
 
   const getDefaultLabel = (type) => {
@@ -87,10 +89,19 @@ export default function WorkflowCanvas({
     onNodeSelect(null);
   }, [onNodeSelect]);
 
+  // Enhance nodes with onDelete callback
+  const enhancedNodes = nodes.map(node => ({
+    ...node,
+    data: {
+      ...node.data,
+      onDelete: () => onDeleteNode(node.id),
+    }
+  }));
+
   return (
     <div className="workspace" ref={reactFlowWrapper}>
       <ReactFlow
-        nodes={nodes}
+        nodes={enhancedNodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}

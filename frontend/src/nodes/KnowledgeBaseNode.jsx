@@ -3,7 +3,18 @@ import { Handle, Position } from '@xyflow/react';
 
 export default function KnowledgeBaseNode({ data, selected }) {
   return (
-    <div className={`custom-node ${selected ? 'selected' : ''}`}>
+    <div className={`custom-node kb-node ${selected ? 'selected' : ''}`}>
+      {data.onDelete && (
+        <button 
+          className="node-delete-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onDelete();
+          }}
+        >
+          ×
+        </button>
+      )}
       <Handle
         type="target"
         position={Position.Left}
@@ -18,9 +29,12 @@ export default function KnowledgeBaseNode({ data, selected }) {
       </div>
       <div className="node-body">
         {data.filename ? (
-          <p>📄 {data.filename}</p>
+          <div className="kb-file-info">
+            <span className="file-icon">📄</span>
+            <span className="file-name">{data.filename}</span>
+          </div>
         ) : (
-          <p>Upload a document to configure</p>
+          <p className="node-description">Upload a document to configure</p>
         )}
       </div>
       <Handle

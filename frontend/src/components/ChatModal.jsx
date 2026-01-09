@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { chatApi } from '../api/client';
 
-export default function ChatModal({ isOpen, onClose, workflow, config }) {
+export default function ChatModal({ isOpen, onClose, workflow, config, workflowId }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -14,6 +15,33 @@ export default function ChatModal({ isOpen, onClose, workflow, config }) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Load chat history when modal opens and we have a workflowId
+  useEffect(() => {
+    if (isOpen && workflowId && !historyLoaded) {
+      loadChatHistory();
+    }
+  }, [isOpen, workflowId]);
+
+  // Reset history loaded flag when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setHistoryLoaded(false);
+    }
+  }, [isOpen]);
+
+  const loadChatHistory = async () => {
+    try {
+      const history = await chatApi.getHistory(workflowId);
+      if (history && history.length > 0) {
+        setMessages(history);
+      }
+      setHistoryLoaded(true);
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+      setHistoryLoaded(true);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,8 +57,8 @@ export default function ChatModal({ isOpen, onClose, workflow, config }) {
 
     try {
       // Send the current message history (excluding the just-added user message) as chat_history
-      // The backend will use this for context
-      const result = await chatApi.execute(workflow, userMessage, config, messages);
+      // Also pass workflowId to persist the chat
+      const result = await chatApi.execute(workflow, userMessage, config, messages, workflowId);
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: result.response },
@@ -42,6 +70,18 @@ export default function ChatModal({ isOpen, onClose, workflow, config }) {
       ]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleClearHistory = async () => {
+    if (!workflowId) return;
+    if (!confirm('Are you sure you want to clear chat history?')) return;
+    
+    try {
+      await chatApi.clearHistory(workflowId);
+      setMessages([]);
+    } catch (error) {
+      console.error('Failed to clear history:', error);
     }
   };
 
@@ -57,7 +97,14 @@ export default function ChatModal({ isOpen, onClose, workflow, config }) {
             </svg>
             Chat with GenAI Stack
           </h3>
-          <button className="chat-close" onClick={onClose}>×</button>
+          <div className="chat-header-actions">
+            {workflowId && messages.length > 0 && (
+              <button className="btn-clear-history" onClick={handleClearHistory} title="Clear history">
+                🗑
+              </button>
+            )}
+            <button className="chat-close" onClick={onClose}>×</button>
+          </div>
         </div>
 
         <div className="chat-messages">

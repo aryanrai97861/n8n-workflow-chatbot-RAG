@@ -44,7 +44,7 @@ class WorkflowExecutor:
         # Execute nodes in order
         context = {
             "query": user_query,
-            "kb_context": None,
+            "kb_contexts": [],  # Changed to list to support multiple KBs
             "web_context": None,
             "response": None,
             "chat_history": chat_history or []
@@ -64,15 +64,20 @@ class WorkflowExecutor:
                 pass
             
             elif node_type == "knowledgeBase":
-                context["kb_context"] = self._execute_knowledge_base(
+                # Accumulate context from ALL knowledge bases
+                kb_context = self._execute_knowledge_base(
                     node_data, 
                     context["query"],
                     config
                 )
-                if context["kb_context"]:
-                    print(f"[Executor] KB context retrieved: {len(context['kb_context'])} chars")
+                if kb_context:
+                    context["kb_contexts"].append({
+                        "filename": node_data.get("filename", "Unknown"),
+                        "content": kb_context
+                    })
+                    print(f"[Executor] KB context from '{node_data.get('filename', 'Unknown')}': {len(kb_context)} chars")
                 else:
-                    print("[Executor] WARNING: No KB context retrieved!")
+                    print(f"[Executor] WARNING: No context from KB '{node_data.get('filename', 'Unknown')}'!")
             
             elif node_type == "llmEngine":
                 context["response"] = self._execute_llm_engine(
@@ -193,12 +198,18 @@ class WorkflowExecutor:
         # Configure LLM service
         self.llm_service.configure(api_key, model)
         
-        # Prepare context
+        # Prepare context - combine ALL knowledge base contexts
         combined_context = ""
         
-        # Add knowledge base context if available
-        if context.get("kb_context"):
-            combined_context += context["kb_context"]
+        # Add all knowledge base contexts with labels
+        kb_contexts = context.get("kb_contexts", [])
+        if kb_contexts:
+            combined_context += "=== KNOWLEDGE BASE CONTEXTS ===\n\n"
+            for i, kb in enumerate(kb_contexts, 1):
+                combined_context += f"--- Document {i}: {kb['filename']} ---\n"
+                combined_context += kb['content']
+                combined_context += "\n\n"
+            print(f"[Executor] Combined {len(kb_contexts)} KB(s) into context, total: {len(combined_context)} chars")
         
         # Web search if enabled
         web_results = ""
@@ -214,7 +225,7 @@ class WorkflowExecutor:
         
         # Get chat history from context
         chat_history = context.get("chat_history", [])
-        print(f"[Executor] LLM Engine - KB context: {'Yes' if combined_context else 'No'}, Web results: {'Yes' if web_results else 'No'}, Chat history: {len(chat_history)} msgs")
+        print(f"[Executor] LLM Engine - KBs: {len(kb_contexts)}, Web results: {'Yes' if web_results else 'No'}, Chat history: {len(chat_history)} msgs")
         
         # Generate response
         try:

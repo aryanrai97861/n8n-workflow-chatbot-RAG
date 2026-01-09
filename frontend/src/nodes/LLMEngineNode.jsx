@@ -3,7 +3,18 @@ import { Handle, Position } from '@xyflow/react';
 
 export default function LLMEngineNode({ data, selected }) {
   return (
-    <div className={`custom-node ${selected ? 'selected' : ''}`}>
+    <div className={`custom-node llm-node ${selected ? 'selected' : ''}`}>
+      {data.onDelete && (
+        <button 
+          className="node-delete-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onDelete();
+          }}
+        >
+          ×
+        </button>
+      )}
       <Handle
         type="target"
         position={Position.Left}
@@ -25,8 +36,8 @@ export default function LLMEngineNode({ data, selected }) {
         <span className="node-title">{data.label || 'LLM Engine'}</span>
       </div>
       <div className="node-body">
-      <p>Model: {data.model || 'Gemini 2.0 Flash'}</p>
-        {data.enableWebSearch && <p>🔍 Web Search enabled</p>}
+        <p className="node-description">Model: {data.model || 'Gemini 2.5 Flash'}</p>
+        {data.enableWebSearch && <p className="web-search-badge">🔍 Web Search enabled</p>}
       </div>
       <Handle
         type="source"
