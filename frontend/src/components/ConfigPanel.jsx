@@ -38,10 +38,19 @@ export default function ConfigPanel({ selectedNode, onNodeUpdate, config, onConf
     setUploading(true);
     try {
       const result = await documentsApi.upload(file, apiKey);
-      handleChange('collectionName', result.collection_name);
-      handleChange('documentId', result.id);
-      handleChange('filename', result.filename);
+      console.log('Upload result:', result);
+      
+      // IMPORTANT: Batch all updates together to prevent state override
+      // Each handleChange call was triggering independent state updates
+      onNodeUpdate(selectedNode.id, {
+        ...data,
+        collectionName: result.collection_name,
+        documentId: result.id,
+        filename: result.filename,
+      });
+      
       setDocuments([...documents, result]);
+      console.log('Node updated with collectionName:', result.collection_name);
     } catch (error) {
       alert('Upload failed: ' + error.message);
     } finally {

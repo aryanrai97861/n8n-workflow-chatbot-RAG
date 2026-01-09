@@ -14,7 +14,7 @@ class WorkflowExecutor:
         self.llm_service = LLMService()
         self.web_search_service = WebSearchService()
     
-    def execute(self, workflow_definition: Dict[str, Any], user_query: str, config: Dict[str, Any]) -> str:
+    def execute(self, workflow_definition: Dict[str, Any], user_query: str, config: Dict[str, Any], chat_history: Optional[List[Dict]] = None) -> str:
         """
         Execute a workflow and return the final response
         
@@ -22,6 +22,7 @@ class WorkflowExecutor:
             workflow_definition: The workflow containing nodes and edges
             user_query: The user's input query
             config: Configuration including API keys and other settings
+            chat_history: Previous conversation messages for context
         
         Returns:
             The final response string
@@ -29,19 +30,24 @@ class WorkflowExecutor:
         nodes = workflow_definition.get("nodes", [])
         edges = workflow_definition.get("edges", [])
         
+        print(f"[Executor] Starting workflow execution with query: {user_query[:100]}...")
+        print(f"[Executor] Chat history has {len(chat_history) if chat_history else 0} messages")
+        
         # Build node map and adjacency list
         node_map = {node["id"]: node for node in nodes}
         adjacency = self._build_adjacency_list(edges)
         
         # Find the execution order
         execution_order = self._get_execution_order(nodes, edges)
+        print(f"[Executor] Execution order: {execution_order}")
         
         # Execute nodes in order
         context = {
             "query": user_query,
             "kb_context": None,
             "web_context": None,
-            "response": None
+            "response": None,
+            "chat_history": chat_history or []
         }
         
         for node_id in execution_order:
@@ -51,6 +57,7 @@ class WorkflowExecutor:
             
             node_type = node.get("type")
             node_data = node.get("data", {})
+            print(f"[Executor] Processing node: {node_type} (id: {node_id})")
             
             if node_type == "userQuery":
                 # User query is the entry point - query already in context
@@ -62,6 +69,10 @@ class WorkflowExecutor:
                     context["query"],
                     config
                 )
+                if context["kb_context"]:
+                    print(f"[Executor] KB context retrieved: {len(context['kb_context'])} chars")
+                else:
+                    print("[Executor] WARNING: No KB context retrieved!")
             
             elif node_type == "llmEngine":
                 context["response"] = self._execute_llm_engine(
@@ -126,17 +137,22 @@ class WorkflowExecutor:
         collection_name = node_data.get("collectionName")
         api_key = node_data.get("apiKey") or config.get("geminiApiKey")
         
+        print(f"[KB] Node data received: {node_data}")
+        print(f"[KB] Collection name: {collection_name}")
+        
         if not collection_name:
+            print("[KB] ERROR: No collection name configured in Knowledge Base node!")
             return None
         
         try:
-            # Configure embedding service
-            self.embedding_service.configure(api_key)
-            
+            # LocalEmbeddingService uses local models, no API key needed
             # Generate query embedding
+            print(f"[KB] Generating embedding for query: {query[:50]}...")
             query_embedding = self.embedding_service.generate_query_embedding(query)
+            print(f"[KB] Embedding generated, length: {len(query_embedding)}")
             
             # Query vector store
+            print(f"[KB] Querying ChromaDB collection: {collection_name}")
             results = self.vector_store.query(
                 collection_name=collection_name,
                 query_embedding=query_embedding,
@@ -145,12 +161,19 @@ class WorkflowExecutor:
             
             # Format context from results
             documents = results.get("documents", [[]])[0]
-            if documents:
-                return "\n\n---\n\n".join(documents)
+            print(f"[KB] Retrieved {len(documents)} document chunks")
             
+            if documents:
+                context = "\n\n---\n\n".join(documents)
+                print(f"[KB] Context length: {len(context)} chars")
+                return context
+            
+            print("[KB] No documents found in collection!")
             return None
         except Exception as e:
-            print(f"Knowledge base error: {str(e)}")
+            print(f"[KB] ERROR during retrieval: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def _execute_llm_engine(
@@ -189,6 +212,10 @@ class WorkflowExecutor:
         # Build system prompt
         system_prompt = prompt_template if prompt_template else None
         
+        # Get chat history from context
+        chat_history = context.get("chat_history", [])
+        print(f"[Executor] LLM Engine - KB context: {'Yes' if combined_context else 'No'}, Web results: {'Yes' if web_results else 'No'}, Chat history: {len(chat_history)} msgs")
+        
         # Generate response
         try:
             if web_results:
@@ -197,14 +224,16 @@ class WorkflowExecutor:
                     web_results=web_results,
                     context=combined_context if combined_context else None,
                     system_prompt=system_prompt,
-                    temperature=temperature
+                    temperature=temperature,
+                    chat_history=chat_history
                 )
             else:
                 response = self.llm_service.generate_response(
                     query=context["query"],
                     context=combined_context if combined_context else None,
                     system_prompt=system_prompt,
-                    temperature=temperature
+                    temperature=temperature,
+                    chat_history=chat_history
                 )
             
             return response

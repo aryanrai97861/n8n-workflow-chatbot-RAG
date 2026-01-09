@@ -10,11 +10,17 @@ from engine.executor import WorkflowExecutor
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
+class ChatMessageItem(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class ExecuteRequest(BaseModel):
     workflow: Dict[str, Any]  # Contains nodes and edges
     query: str
     config: Dict[str, Any]  # API keys and other config
     workflow_id: Optional[int] = None
+    chat_history: Optional[List[ChatMessageItem]] = None  # Previous messages for context
 
 
 class ChatMessage(BaseModel):
@@ -27,10 +33,17 @@ async def execute_workflow(request: ExecuteRequest, db: Session = Depends(get_db
     """Execute a workflow with a user query"""
     try:
         executor = WorkflowExecutor()
+        
+        # Convert chat history to list of dicts
+        history = None
+        if request.chat_history:
+            history = [{"role": msg.role, "content": msg.content} for msg in request.chat_history]
+        
         response = executor.execute(
             workflow_definition=request.workflow,
             user_query=request.query,
-            config=request.config
+            config=request.config,
+            chat_history=history
         )
         
         # Save to chat log if workflow_id provided

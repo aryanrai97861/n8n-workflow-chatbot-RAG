@@ -73,7 +73,7 @@ export const workflowsApi = {
 
 // Chat/Execute API
 export const chatApi = {
-  execute: async (workflow, query, config, workflowId = null) => {
+  execute: async (workflow, query, config, chatHistory = [], workflowId = null) => {
     const response = await fetch(`${API_BASE_URL}/chat/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -82,6 +82,7 @@ export const chatApi = {
         query,
         config,
         workflow_id: workflowId,
+        chat_history: chatHistory,
       }),
     });
     

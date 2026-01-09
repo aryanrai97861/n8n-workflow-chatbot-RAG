@@ -28,7 +28,8 @@ class LLMService:
         query: str,
         context: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        temperature: float = 0.7
+        temperature: float = 0.7,
+        chat_history: Optional[list] = None
     ) -> str:
         """Generate a response using Gemini"""
         if not self.api_key or not self.model:
@@ -41,7 +42,15 @@ class LLMService:
             prompt_parts.append(system_prompt)
         
         if context:
-            prompt_parts.append(f"Context:\n{context}\n")
+            prompt_parts.append(f"Context from Knowledge Base:\n{context}\n")
+        
+        # Add chat history for conversation memory
+        if chat_history:
+            prompt_parts.append("Previous conversation:")
+            for msg in chat_history:
+                role = "User" if msg.get("role") == "user" else "Assistant"
+                prompt_parts.append(f"{role}: {msg.get('content', '')}")
+            prompt_parts.append("")  # Empty line before current query
         
         prompt_parts.append(f"User Query: {query}")
         
@@ -68,7 +77,8 @@ class LLMService:
         web_results: str,
         context: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        temperature: float = 0.7
+        temperature: float = 0.7,
+        chat_history: Optional[list] = None
     ) -> str:
         """Generate a response with web search results included"""
         enhanced_context = ""
@@ -83,5 +93,6 @@ class LLMService:
             query=query,
             context=enhanced_context if enhanced_context else None,
             system_prompt=system_prompt,
-            temperature=temperature
+            temperature=temperature,
+            chat_history=chat_history
         )

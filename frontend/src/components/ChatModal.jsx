@@ -21,11 +21,16 @@ export default function ChatModal({ isOpen, onClose, workflow, config }) {
 
     const userMessage = input.trim();
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+    
+    // Add user message to state
+    const updatedMessages = [...messages, { role: 'user', content: userMessage }];
+    setMessages(updatedMessages);
     setLoading(true);
 
     try {
-      const result = await chatApi.execute(workflow, userMessage, config);
+      // Send the current message history (excluding the just-added user message) as chat_history
+      // The backend will use this for context
+      const result = await chatApi.execute(workflow, userMessage, config, messages);
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: result.response },
