@@ -35,7 +35,8 @@ def safe_remove_file(file_path: str, retries: int = 3):
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
-    api_key: str = Form(...),
+    api_key: Optional[str] = Form(None),
+    embedding_model: str = Form("local"),
     db: Session = Depends(get_db)
 ):
     """Upload and process a document"""

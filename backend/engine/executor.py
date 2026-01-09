@@ -60,8 +60,11 @@ class WorkflowExecutor:
             print(f"[Executor] Processing node: {node_type} (id: {node_id})")
             
             if node_type == "userQuery":
-                # User query is the entry point - query already in context
-                pass
+                # User query is the entry point - capture query template if provided
+                query_template = node_data.get("queryTemplate", "")
+                if query_template:
+                    context["query_template"] = query_template
+                    print(f"[Executor] Query template found: {query_template[:50]}...")
             
             elif node_type == "knowledgeBase":
                 # Accumulate context from ALL knowledge bases
@@ -223,9 +226,18 @@ class WorkflowExecutor:
         # Build system prompt
         system_prompt = prompt_template if prompt_template else None
         
-        # Get chat history from context
+        # Get chat history and query template from context
         chat_history = context.get("chat_history", [])
-        print(f"[Executor] LLM Engine - KBs: {len(kb_contexts)}, Web results: {'Yes' if web_results else 'No'}, Chat history: {len(chat_history)} msgs")
+        query_template = context.get("query_template", "")
+        
+        # Combine query template with user query if template exists
+        final_query = context["query"]
+        if query_template:
+            # Add template context to the combined context
+            combined_context = f"=== USER QUERY TEMPLATE ===\n{query_template}\n\n{combined_context}"
+            print(f"[Executor] Added query template to context")
+        
+        print(f"[Executor] LLM Engine - KBs: {len(kb_contexts)}, Web results: {'Yes' if web_results else 'No'}, Chat history: {len(chat_history)} msgs, Template: {'Yes' if query_template else 'No'}")
         
         # Generate response
         try:

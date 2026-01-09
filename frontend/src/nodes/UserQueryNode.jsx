@@ -26,7 +26,11 @@ export default function UserQueryNode({ data, selected }) {
         <div className="node-input-preview">
           <label>Query</label>
           <div className="query-preview-box">
-            {data.queryPreview || 'Write your query here'}
+            {data.queryTemplate 
+              ? (data.queryTemplate.length > 50 
+                  ? data.queryTemplate.substring(0, 50) + '...' 
+                  : data.queryTemplate)
+              : 'Write your query here'}
           </div>
         </div>
       </div>

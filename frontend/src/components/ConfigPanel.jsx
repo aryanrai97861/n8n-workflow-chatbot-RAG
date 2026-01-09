@@ -29,19 +29,17 @@ export default function ConfigPanel({ selectedNode, onNodeUpdate, config, onConf
     const file = e.target.files[0];
     if (!file) return;
 
-    const apiKey = data.apiKey || config.geminiApiKey;
-    if (!apiKey) {
-      alert('Please enter an API key first');
-      return;
-    }
+    // Get API key only if using Gemini embeddings
+    const embeddingModel = data.embeddingModel || 'local';
+    const apiKey = embeddingModel === 'gemini' ? (data.apiKey || config.geminiApiKey) : null;
 
     setUploading(true);
     try {
-      const result = await documentsApi.upload(file, apiKey);
+      // Pass embedding model preference to backend
+      const result = await documentsApi.upload(file, apiKey, embeddingModel);
       console.log('Upload result:', result);
       
-      // IMPORTANT: Batch all updates together to prevent state override
-      // Each handleChange call was triggering independent state updates
+      // Batch all updates together
       onNodeUpdate(selectedNode.id, {
         ...data,
         collectionName: result.collection_name,
@@ -70,21 +68,47 @@ export default function ConfigPanel({ selectedNode, onNodeUpdate, config, onConf
           placeholder="User Query"
         />
       </div>
+
+      <div className="form-group">
+        <label className="form-label">Query / Pre-prompt</label>
+        <textarea
+          className="form-input form-textarea"
+          value={data.queryTemplate || ''}
+          onChange={(e) => handleChange('queryTemplate', e.target.value)}
+          placeholder="Write your query template here... This will be used as context for the Knowledge Base and LLM."
+          rows={4}
+        />
+        <p className="form-hint">This query template will be combined with user messages during chat.</p>
+      </div>
     </>
   );
 
   const renderKnowledgeBaseConfig = () => (
     <>
       <div className="form-group">
-        <label className="form-label">Gemini API Key</label>
-        <input
-          type="password"
-          className="form-input"
-          value={data.apiKey || ''}
-          onChange={(e) => handleChange('apiKey', e.target.value)}
-          placeholder="Enter API key"
-        />
+        <label className="form-label">Embedding Model</label>
+        <select
+          className="form-input form-select"
+          value={data.embeddingModel || 'local'}
+          onChange={(e) => handleChange('embeddingModel', e.target.value)}
+        >
+          <option value="local">Local (all-MiniLM-L6-v2) - Default</option>
+          <option value="gemini">Gemini (text-embedding-004)</option>
+        </select>
       </div>
+
+      {data.embeddingModel === 'gemini' && (
+        <div className="form-group">
+          <label className="form-label">Gemini API Key</label>
+          <input
+            type="password"
+            className="form-input"
+            value={data.apiKey || ''}
+            onChange={(e) => handleChange('apiKey', e.target.value)}
+            placeholder="Enter API key for Gemini embeddings"
+          />
+        </div>
+      )}
 
       <div className="form-group">
         <label className="form-label">Upload Document</label>

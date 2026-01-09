@@ -2,10 +2,13 @@ const API_BASE_URL = 'http://localhost:8000/api';
 
 // Documents API
 export const documentsApi = {
-  upload: async (file, apiKey) => {
+  upload: async (file, apiKey = null, embeddingModel = 'local') => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('api_key', apiKey);
+    if (apiKey) {
+      formData.append('api_key', apiKey);
+    }
+    formData.append('embedding_model', embeddingModel);
     
     const response = await fetch(`${API_BASE_URL}/documents/upload`, {
       method: 'POST',
