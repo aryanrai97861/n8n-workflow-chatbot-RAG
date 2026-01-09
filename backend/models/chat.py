@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey
 from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
 from database import Base
 
 
@@ -9,6 +8,7 @@ class ChatLog(Base):
     __tablename__ = "chat_logs"
     
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     workflow_id = Column(Integer, ForeignKey("workflows.id"), nullable=True)
     user_message = Column(Text)
     assistant_message = Column(Text)
@@ -17,6 +17,7 @@ class ChatLog(Base):
     def to_dict(self):
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "workflow_id": self.workflow_id,
             "user_message": self.user_message,
             "assistant_message": self.assistant_message,

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from database import Base
 
@@ -8,6 +8,7 @@ class Document(Base):
     __tablename__ = "documents"
     
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     filename = Column(String(255), nullable=False)
     file_path = Column(String(500))
     content = Column(Text)
@@ -17,6 +18,7 @@ class Document(Base):
     def to_dict(self):
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "filename": self.filename,
             "file_path": self.file_path,
             "collection_name": self.collection_name,

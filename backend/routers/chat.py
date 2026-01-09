@@ -7,7 +7,9 @@ import uuid
 from database import get_db
 from models.chat import ChatLog
 from models.execution_log import ExecutionLog
+from models.user import User
 from engine.executor import WorkflowExecutor
+from services.auth import get_current_user
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -22,29 +24,24 @@ class ExecuteRequest(BaseModel):
     query: str
     config: Dict[str, Any]  # API keys and other config
     workflow_id: Optional[int] = None
-    chat_history: Optional[List[ChatMessageItem]] = None  # Previous messages for context
-
-
-class ChatMessage(BaseModel):
-    role: str  # "user" or "assistant"
-    content: str
+    chat_history: Optional[List[ChatMessageItem]] = None
 
 
 @router.post("/execute")
-async def execute_workflow(request: ExecuteRequest, db: Session = Depends(get_db)):
+async def execute_workflow(
+    request: ExecuteRequest, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Execute a workflow with a user query"""
     try:
-        # Generate unique execution ID
         execution_id = str(uuid.uuid4())
-        
         executor = WorkflowExecutor()
         
-        # Convert chat history to list of dicts
         history = None
         if request.chat_history:
             history = [{"role": msg.role, "content": msg.content} for msg in request.chat_history]
         
-        # Execute workflow and get response with logs
         result = executor.execute(
             workflow_definition=request.workflow,
             user_query=request.query,
@@ -57,7 +54,7 @@ async def execute_workflow(request: ExecuteRequest, db: Session = Depends(get_db
         response = result["response"]
         logs = result.get("logs", [])
         
-        # Save execution logs to database
+        # Save execution logs
         for log in logs:
             db_log = ExecutionLog(
                 execution_id=execution_id,
@@ -69,9 +66,10 @@ async def execute_workflow(request: ExecuteRequest, db: Session = Depends(get_db
             )
             db.add(db_log)
         
-        # Save to chat log if workflow_id provided
+        # Save chat log with user_id
         if request.workflow_id:
             chat_log = ChatLog(
+                user_id=current_user.id,
                 workflow_id=request.workflow_id,
                 user_message=request.query,
                 assistant_message=response
@@ -91,10 +89,15 @@ async def execute_workflow(request: ExecuteRequest, db: Session = Depends(get_db
 
 
 @router.get("/history/{workflow_id}")
-async def get_chat_history(workflow_id: int, db: Session = Depends(get_db)):
-    """Get chat history for a workflow"""
+async def get_chat_history(
+    workflow_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get chat history for a workflow owned by current user"""
     logs = db.query(ChatLog).filter(
-        ChatLog.workflow_id == workflow_id
+        ChatLog.workflow_id == workflow_id,
+        ChatLog.user_id == current_user.id
     ).order_by(ChatLog.created_at).all()
     
     messages = []
@@ -106,15 +109,26 @@ async def get_chat_history(workflow_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/history/{workflow_id}")
-async def clear_chat_history(workflow_id: int, db: Session = Depends(get_db)):
-    """Clear chat history for a workflow"""
-    db.query(ChatLog).filter(ChatLog.workflow_id == workflow_id).delete()
+async def clear_chat_history(
+    workflow_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Clear chat history for a workflow owned by current user"""
+    db.query(ChatLog).filter(
+        ChatLog.workflow_id == workflow_id,
+        ChatLog.user_id == current_user.id
+    ).delete()
     db.commit()
     return {"message": "Chat history cleared"}
 
 
 @router.get("/logs/{execution_id}")
-async def get_execution_logs(execution_id: str, db: Session = Depends(get_db)):
+async def get_execution_logs(
+    execution_id: str, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Get execution logs for a specific execution"""
     logs = db.query(ExecutionLog).filter(
         ExecutionLog.execution_id == execution_id
@@ -124,7 +138,12 @@ async def get_execution_logs(execution_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/logs/workflow/{workflow_id}")
-async def get_workflow_execution_logs(workflow_id: int, limit: int = 50, db: Session = Depends(get_db)):
+async def get_workflow_execution_logs(
+    workflow_id: int, 
+    limit: int = 50, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Get recent execution logs for a workflow"""
     logs = db.query(ExecutionLog).filter(
         ExecutionLog.workflow_id == workflow_id
