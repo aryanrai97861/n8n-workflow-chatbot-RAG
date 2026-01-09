@@ -161,7 +161,7 @@ class WorkflowExecutor:
     ) -> str:
         """Execute LLM generation"""
         api_key = node_data.get("apiKey") or config.get("geminiApiKey")
-        model = node_data.get("model", "gemini-2.0-flash")
+        model = node_data.get("model", "gemini-2.5-flash")
         prompt_template = node_data.get("prompt", "")
         temperature = float(node_data.get("temperature", 0.7))
         enable_web_search = node_data.get("enableWebSearch", False)
