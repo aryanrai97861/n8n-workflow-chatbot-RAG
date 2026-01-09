@@ -19,5 +19,5 @@ def get_db():
 
 def init_db():
     """Initialize database tables"""
-    from models import document, workflow, chat, execution_log  # noqa
+    from models import document, workflow, chat, execution_log, user  # noqa
     Base.metadata.create_all(bind=engine)

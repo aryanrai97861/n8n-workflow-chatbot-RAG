@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 
 from database import init_db
-from routers import documents_router, workflows_router, chat_router
+from routers import documents_router, workflows_router, chat_router, auth_router
 from config import settings
 
 # Create upload and chroma directories
@@ -19,14 +19,15 @@ app = FastAPI(
 # CORS middleware - Allow all origins for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,  # Must be False when using wildcard origins
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(documents_router)
 app.include_router(workflows_router)
 app.include_router(chat_router)

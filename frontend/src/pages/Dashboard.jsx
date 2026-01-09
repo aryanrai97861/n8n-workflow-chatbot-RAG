@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { workflowsApi } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 export default function Dashboard() {
   const [stacks, setStacks] = useState([]);
@@ -10,6 +11,7 @@ export default function Dashboard() {
   const [newStackDescription, setNewStackDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     loadStacks();
@@ -69,6 +71,15 @@ export default function Dashboard() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const getUserInitial = () => {
+    return user?.name?.charAt(0).toUpperCase() || 'U';
+  };
+
   if (loading) {
     return (
       <div className="dashboard">
@@ -78,7 +89,7 @@ export default function Dashboard() {
             <span>GenAI Stack</span>
           </div>
           <div className="header-right">
-            <div className="avatar">S</div>
+            <div className="avatar">{getUserInitial()}</div>
           </div>
         </header>
         <main className="dashboard-main">
@@ -99,7 +110,15 @@ export default function Dashboard() {
           <span>GenAI Stack</span>
         </div>
         <div className="header-right">
-          <div className="avatar">S</div>
+          <span className="user-name">{user?.name}</span>
+          <div className="avatar" title={user?.email}>{getUserInitial()}</div>
+          <button className="btn-logout" onClick={handleLogout} title="Logout">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
         </div>
       </header>
 
