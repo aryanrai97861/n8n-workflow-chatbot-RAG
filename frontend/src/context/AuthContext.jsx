@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+// Use relative URL in production (served through nginx proxy), localhost in dev
+const API_BASE_URL = import.meta.env.PROD ? '/api' : 'http://localhost:8000/api';
 
 const AuthContext = createContext(null);
 

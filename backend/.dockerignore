@@ -1,0 +1,23 @@
+# Backend .dockerignore
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.git
+.gitignore
+*.db
+*.sqlite3
+.env
+.env.*
+!.env.example
+uploads/*
+chroma_data/*
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/

@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: genai-postgres
+    environment:
+      POSTGRES_USER: genai
+      POSTGRES_PASSWORD: genai_password
+      POSTGRES_DB: genai_stack
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genai -d genai_stack"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: genai-backend
+    environment:
+      DATABASE_URL: postgresql://genai:genai_password@db:5432/genai_stack
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      SERP_API_KEY: ${SERP_API_KEY:-}
+      CHROMA_PERSIST_DIR: /app/chroma_data
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_chroma:/app/chroma_data
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    container_name: genai-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  backend_uploads:
+  backend_chroma:
