@@ -6,6 +6,7 @@ import WorkflowCanvas from '../components/WorkflowCanvas';
 import ConfigPanel from '../components/ConfigPanel';
 import ChatModal from '../components/ChatModal';
 import { workflowsApi } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 const initialNodes = [];
 const initialEdges = [];
@@ -14,6 +15,7 @@ function WorkflowBuilderContent() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = !!id;
+  const { user, logout } = useAuth();
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -177,6 +179,15 @@ function WorkflowBuilderContent() {
     navigate('/');
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const getUserInitial = () => {
+    return user?.name?.charAt(0).toUpperCase() || 'U';
+  };
+
   const getWorkflowDefinition = () => ({
     nodes: nodes,
     edges: edges,
@@ -222,7 +233,15 @@ function WorkflowBuilderContent() {
           >
             {saving ? 'Saving...' : '💾 Save'}
           </button>
-          <div className="avatar">S</div>
+          <span className="user-name">{user?.name}</span>
+          <div className="avatar" title={user?.email}>{getUserInitial()}</div>
+          <button className="btn-logout" onClick={handleLogout} title="Logout">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
         </div>
       </header>
       
