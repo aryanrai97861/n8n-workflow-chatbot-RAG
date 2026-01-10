@@ -1,88 +1,238 @@
-# GenAI Stack - No-Code Workflow Builder
+# GenAI Stack - No-Code/Low-Code Workflow Builder
 
-A visual drag-and-drop workflow builder that enables users to create intelligent workflows using LLM, Knowledge Base, and Web Search components.
+A visual drag-and-drop workflow builder that enables users to create intelligent AI workflows. Build flows with LLM, Knowledge Base (RAG), and Web Search components, then interact with them through a chat interface.
 
-## Architecture
+> **Assignment**: Full-Stack Engineering – No-Code/Low-Code Web Application with Intelligent Workflows
+
+---
+
+## 📐 Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Frontend (React)                         │
-│  ┌──────────────┐ ┌──────────────────┐ ┌─────────────────┐      │
-│  │  Component   │ │  React Flow      │ │  Config Panel   │      │
-│  │  Library     │ │  Canvas          │ │                 │      │
-│  └──────────────┘ └──────────────────┘ └─────────────────┘      │
-└─────────────────────────────────────────────────────────────────┘
-                              │ API
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       Backend (FastAPI)                          │
-│  ┌──────────────┐ ┌──────────────────┐ ┌─────────────────┐      │
-│  │  Documents   │ │  Workflow        │ │  Chat/Execute   │      │
-│  │  Router      │ │  Router          │ │  Router         │      │
-│  └──────────────┘ └──────────────────┘ └─────────────────┘      │
-│                              │                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │                    Services                               │   │
-│  │  Text Extractor │ Embeddings │ Vector Store │ LLM │ Search│   │
-│  └──────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        ▼                     ▼                     ▼
-  ┌──────────┐          ┌──────────┐          ┌──────────┐
-  │PostgreSQL│          │ChromaDB  │          │Gemini API│
-  └──────────┘          └──────────┘          └──────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    FRONTEND (React + Vite)                                │
+│  ┌─────────────────────┐  ┌──────────────────────────┐  ┌──────────────────────────────┐ │
+│  │  Component Library  │  │     React Flow Canvas    │  │     Configuration Panel      │ │
+│  │  ● User Query       │  │  ┌─────┐    ┌─────────┐  │  │  ● API Key Settings          │ │
+│  │  ● Knowledge Base   │  │  │Query├───►│Knowledge│  │  │  ● Model Selection          │ │
+│  │  ● LLM Engine       │  │  │     │    │  Base   │  │  │  ● System Prompts           │ │
+│  │  ● Output           │  │  └─────┘    └────┬────┘  │  │  ● Web Search Toggle        │ │
+│  └─────────────────────┘  │              ┌───▼───┐   │  └──────────────────────────────┘ │
+│                           │              │  LLM  │   │                                   │
+│  ┌─────────────────────┐  │              │Engine │   │  ┌──────────────────────────────┐ │
+│  │   Dashboard         │  │              └───┬───┘   │  │       Chat Modal             │ │
+│  │  ● Saved Workflows  │  │              ┌───▼───┐   │  │  ● Query Input               │ │
+│  │  ● Create/Delete    │  │              │Output │   │  │  ● Response Display          │ │
+│  └─────────────────────┘  │              └───────┘   │  │  ● Execution Logs            │ │
+│                           └──────────────────────────┘  └──────────────────────────────┘ │
+└───────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                            │ REST APIs (HTTP/JSON)
+                                            ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   BACKEND (FastAPI)                                       │
+│  ┌─────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                                    Routers                                          │ │
+│  │   /api/auth     │   /api/documents   │   /api/workflows   │   /api/chat             │ │
+│  │   ● register    │   ● upload         │   ● CRUD           │   ● execute             │ │
+│  │   ● login       │   ● list/delete    │   ● save/load      │   ● history             │ │
+│  └─────────────────────────────────────────────────────────────────────────────────────┘ │
+│                                            │                                             │
+│  ┌─────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                                   Services                                           │ │
+│  │  ┌───────────────┐ ┌────────────────┐ ┌───────────────┐ ┌─────────────────────────┐ │ │
+│  │  │ Text Extractor│ │Local Embedding │ │ Vector Store  │ │     LLM Service         │ │ │
+│  │  │  (PyMuPDF)    │ │  (Sentence-    │ │  (ChromaDB)   │ │   (Gemini API)          │ │ │
+│  │  │               │ │  Transformers) │ │               │ │                         │ │ │
+│  │  └───────────────┘ └────────────────┘ └───────────────┘ └─────────────────────────┘ │ │
+│  │  ┌───────────────┐ ┌────────────────┐ ┌───────────────┐                             │ │
+│  │  │ Web Search    │ │ Auth Service   │ │Execution Logger│                            │ │
+│  │  │ (SerpAPI/     │ │ (JWT/bcrypt)   │ │  (Structured) │                             │ │
+│  │  │  Brave)       │ │               │ │               │                             │ │
+│  │  └───────────────┘ └────────────────┘ └───────────────┘                             │ │
+│  └─────────────────────────────────────────────────────────────────────────────────────┘ │
+│                                            │                                             │
+│  ┌─────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                             Workflow Executor Engine                                 │ │
+│  │           Orchestrates: User Query → Knowledge Base → LLM → Output                  │ │
+│  └─────────────────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────┬────────────────────────────┬────────────────────────────┬──────────────┘
+                  │                            │                            │
+                  ▼                            ▼                            ▼
+         ┌──────────────┐            ┌──────────────────┐         ┌──────────────────┐
+         │  PostgreSQL  │            │     ChromaDB     │         │   External APIs  │
+         │  ● Users     │            │  ● Embeddings    │         │  ● Gemini LLM    │
+         │  ● Workflows │            │  ● Vector Search │         │  ● SerpAPI       │
+         │  ● Chat Logs │            │                  │         │  ● Brave Search  │
+         │  ● Exec Logs │            │                  │         │                  │
+         └──────────────┘            └──────────────────┘         └──────────────────┘
 ```
 
-## Tech Stack
+### Workflow Execution Flow
 
-- **Frontend**: React + Vite + React Flow
-- **Backend**: FastAPI (Python)
-- **Database**: PostgreSQL (Neon)
-- **Vector Store**: ChromaDB
-- **LLM**: Google Gemini
-- **Web Search**: SerpAPI / Brave
+```
+┌──────────┐      ┌───────────────────────┐      ┌───────────────┐      ┌────────────┐
+│  User    │      │    Knowledge Base     │      │  LLM Engine   │      │   Output   │
+│  Query   ├─────►│  (Optional RAG)       ├─────►│  + Web Search ├─────►│  Response  │
+│          │      │  Retrieve Context     │      │  Generate     │      │            │
+└──────────┘      └───────────────────────┘      └───────────────┘      └────────────┘
+     │                      │                            │
+     │         ┌────────────┴────────────┐               │
+     │         ▼                         ▼               ▼
+     │   ┌──────────┐            ┌─────────────┐  ┌─────────────┐
+     │   │ ChromaDB │            │System Prompt│  │ Web Search  │
+     │   │ Vectors  │            │+ Temperature│  │ Results     │
+     │   └──────────┘            └─────────────┘  └─────────────┘
+     │
+     └────► Chat History (Conversation Memory)
+```
 
-## Setup Instructions
+---
+
+## 🛠 Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Frontend** | React 19 + Vite | UI Framework |
+| **Drag & Drop** | @xyflow/react (React Flow) | Visual Workflow Builder |
+| **Routing** | React Router DOM | Multi-page navigation |
+| **Backend** | FastAPI (Python) | REST API Server |
+| **Database** | PostgreSQL | Metadata, workflows, logs |
+| **Vector Store** | ChromaDB | Document embeddings storage |
+| **Embeddings** | sentence-transformers (all-MiniLM-L6-v2) | Local embedding generation |
+| **LLM** | Google Gemini (gemini-2.5-flash) | Response generation |
+| **Text Extraction** | PyMuPDF | PDF document parsing |
+| **Web Search** | SerpAPI / Brave Search | Real-time web results |
+| **Auth** | JWT + bcrypt | User authentication |
+| **Containerization** | Docker + Docker Compose | Deployment |
+
+---
+
+## ✅ Features Implemented
+
+### Core Requirements (All Implemented ✓)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **User Query Component** | ✅ | Entry point for user questions, sends query to connected components |
+| **Knowledge Base Component** | ✅ | PDF upload, text extraction (PyMuPDF), embeddings (sentence-transformers), ChromaDB storage, RAG retrieval |
+| **LLM Engine Component** | ✅ | Gemini integration, custom prompts, temperature control, web search option, context from KB |
+| **Output Component** | ✅ | Displays responses in chat interface, supports follow-up questions |
+| **Workflow Builder Canvas** | ✅ | React Flow with drag-drop, connections, zoom/pan |
+| **Component Library Panel** | ✅ | Lists all 4 components, draggable to canvas |
+| **Configuration Panel** | ✅ | Dynamic config per component (model, prompts, API keys, toggles) |
+| **Build Stack** | ✅ | Validates workflow before execution |
+| **Chat with Stack** | ✅ | Chat modal for query interaction |
+| **Docker Containerization** | ✅ | Dockerfiles + docker-compose for all services |
+
+### Optional Features Implemented ✓
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **User Authentication** | ✅ | JWT-based login/register with bcrypt password hashing |
+| **Workflow Saving/Loading** | ✅ | Persist and retrieve workflows from PostgreSQL |
+| **Chat History Persistence** | ✅ | Store conversation history per workflow in database |
+| **Execution Logs** | ✅ | Structured logging of each workflow step with timing |
+| **Dashboard** | ✅ | View, create, delete, and manage saved workflows |
+| **Multi-user Support** | ✅ | Each user has isolated workflows and chat history |
+
+### Not Implemented
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Kubernetes Deployment | ❌ | Optional in assignment |
+| Prometheus/Grafana Monitoring | ❌ | Optional in assignment |
+| ELK Stack Logging | ❌ | Optional in assignment |
+| OpenAI GPT Integration | ❌ | Using Gemini instead (assignment allowed either) |
+| Real-time Progress Indicators | ❌ | Logs available post-execution |
+
+---
+
+## 🚀 Setup & Run Instructions
 
 ### Prerequisites
 
-- Node.js 18+
-- Python 3.10+
-- PostgreSQL database (or Neon account)
-- Gemini API key
+- **Node.js** 18+ (for frontend)
+- **Python** 3.10+ (for backend)
+- **Docker** & **Docker Compose** (for containerized setup)
+- **PostgreSQL** database (or use Docker)
+- **API Keys**: Gemini API key (required), SerpAPI/Brave (optional)
 
-### Backend Setup
+---
+
+### Option 1: Docker (Recommended)
+
+The easiest way to run the complete stack with all dependencies.
+
+#### 1. Clone and Configure
+
+```bash
+cd "Full stack"
+
+
+#### 2. Build and Run All Services
+
+```bash
+docker-compose up --build
+```
+
+This starts:
+- **PostgreSQL** on port `5432`
+- **Backend (FastAPI)** on port `8000`  
+- **Frontend (Nginx)** on port `80`
+
+#### 3. Access the Application
+
+- **Frontend**: http://localhost
+- **Backend API Docs**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
+
+#### 4. Stop Services
+
+```bash
+docker-compose down
+
+# To remove all data volumes:
+docker-compose down -v
+```
+
+---
+
+### Option 2: Terminal (Local Development)
+
+Run each service separately for development with hot reload.
+
+#### Backend Setup
 
 ```bash
 cd backend
 
-# Create virtual environment
+# Create and activate virtual environment
 python -m venv venv
 
-# Activate (Windows)
+# Windows
 .\venv\Scripts\activate
 
-# Activate (macOS/Linux)
+# macOS/Linux
 source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy environment template
+# Configure environment
 cp .env.example .env
+# Edit .env and add:
+#   DATABASE_URL=postgresql://user:password@localhost:5432/workflow_db
+#   GEMINI_API_KEY=your_key_here
+#   SERP_API_KEY=optional
+#   BRAVE_API_KEY=optional
 
-# Edit .env with your credentials
-# - DATABASE_URL: Your Neon PostgreSQL URL
-# - GEMINI_API_KEY: Your Gemini API key
-
-# Run the server
+# Run the server (with hot reload)
 python main.py
 ```
 
-Backend runs at: http://localhost:8000
+Backend runs at: **http://localhost:8000**
 
-### Frontend Setup
+#### Frontend Setup
 
 ```bash
 cd frontend
@@ -94,51 +244,191 @@ npm install
 npm run dev
 ```
 
-Frontend runs at: http://localhost:5173
+Frontend runs at: **http://localhost:5173**
 
-## Usage
+#### Database Setup (Local PostgreSQL)
 
-1. **Drag Components** - Drag components from the left panel onto the canvas
-2. **Connect Nodes** - Draw connections between components
-3. **Configure** - Click a node to configure its settings
-4. **Build Stack** - Click "Build Stack" to validate the workflow
-5. **Chat** - Click "Chat with Stack" to interact with your workflow
+If not using Docker, ensure PostgreSQL is running:
 
-## Core Components
+```sql
+-- Create database
+CREATE DATABASE workflow_db;
 
-| Component | Description |
-|-----------|-------------|
-| **User Query** | Entry point for user questions |
-| **Knowledge Base** | Upload documents, generates embeddings, retrieves context |
-| **LLM Engine** | Processes queries with Gemini, optional web search |
-| **Output** | Displays the final response |
-
-## API Endpoints
-
-### Documents
-- `POST /api/documents/upload` - Upload and process document
-- `GET /api/documents` - List documents
-- `DELETE /api/documents/{id}` - Delete document
-
-### Workflows
-- `POST /api/workflows` - Create workflow
-- `GET /api/workflows` - List workflows
-- `PUT /api/workflows/{id}` - Update workflow
-- `DELETE /api/workflows/{id}` - Delete workflow
-
-### Chat
-- `POST /api/chat/execute` - Execute workflow with query
-- `GET /api/chat/history/{workflow_id}` - Get chat history
-
-## Environment Variables
-
-```env
-DATABASE_URL=postgresql://...
-GEMINI_API_KEY=your_key
-SERP_API_KEY=optional
-BRAVE_API_KEY=optional
+-- Create user (if needed)
+CREATE USER myuser WITH PASSWORD 'mypassword';
+GRANT ALL PRIVILEGES ON DATABASE workflow_db TO myuser;
 ```
 
-## License
+The backend will auto-create tables on startup.
 
-MIT
+---
+
+## 📁 Project Structure
+
+```
+Full stack/
+├── docker-compose.yml          # Multi-container orchestration
+├── README.md                   # This file
+│
+├── backend/                    # FastAPI Backend
+│   ├── Dockerfile
+│   ├── main.py                 # App entry point
+│   ├── config.py               # Settings management
+│   ├── database.py             # SQLAlchemy setup
+│   ├── requirements.txt
+│   ├── .env.example
+│   │
+│   ├── models/                 # SQLAlchemy Models
+│   │   ├── user.py             # User model
+│   │   ├── workflow.py         # Workflow model
+│   │   ├── document.py         # Document model
+│   │   ├── chat.py             # Chat log model
+│   │   └── execution_log.py    # Execution log model
+│   │
+│   ├── routers/                # API Endpoints
+│   │   ├── auth.py             # /api/auth/*
+│   │   ├── documents.py        # /api/documents/*
+│   │   ├── workflows.py        # /api/workflows/*
+│   │   └── chat.py             # /api/chat/*
+│   │
+│   ├── services/               # Business Logic
+│   │   ├── auth.py             # JWT, password hashing
+│   │   ├── llm.py              # Gemini LLM integration
+│   │   ├── embedding.py        # Embedding service
+│   │   ├── local_embedding.py  # sentence-transformers
+│   │   ├── vector_store.py     # ChromaDB operations
+│   │   ├── text_extractor.py   # PyMuPDF extraction
+│   │   ├── web_search.py       # SerpAPI/Brave
+│   │   └── execution_logger.py # Structured logging
+│   │
+│   └── engine/                 # Workflow Execution
+│       └── executor.py         # Workflow orchestration
+│
+└── frontend/                   # React Frontend
+    ├── Dockerfile
+    ├── nginx.conf              # Production config
+    ├── package.json
+    ├── vite.config.js
+    │
+    └── src/
+        ├── App.jsx             # Main app component
+        ├── main.jsx            # Entry point
+        ├── index.css           # Global styles
+        │
+        ├── api/                # API client
+        │   └── client.js
+        │
+        ├── context/            # React Context
+        │   └── AuthContext.jsx
+        │
+        ├── pages/              # Route Pages
+        │   ├── Dashboard.jsx   # Workflow management
+        │   ├── Login.jsx
+        │   ├── Register.jsx
+        │   └── WorkflowBuilder.jsx
+        │
+        ├── components/         # Reusable Components
+        │   ├── ChatModal.jsx
+        │   ├── ComponentLibrary.jsx
+        │   ├── ConfigPanel.jsx
+        │   ├── Header.jsx
+        │   ├── WorkflowCanvas.jsx
+        │   └── ProtectedRoute.jsx
+        │
+        └── nodes/              # Custom React Flow Nodes
+            ├── UserQueryNode.jsx
+            ├── KnowledgeBaseNode.jsx
+            ├── LLMEngineNode.jsx
+            └── OutputNode.jsx
+```
+
+---
+
+## 🔗 API Endpoints
+
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | Login and get JWT token |
+| GET | `/api/auth/me` | Get current user info |
+
+### Documents
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/documents/upload` | Upload and process PDF |
+| GET | `/api/documents` | List all documents |
+| DELETE | `/api/documents/{id}` | Delete a document |
+
+### Workflows
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/workflows` | Create new workflow |
+| GET | `/api/workflows` | List user's workflows |
+| GET | `/api/workflows/{id}` | Get workflow details |
+| PUT | `/api/workflows/{id}` | Update workflow |
+| DELETE | `/api/workflows/{id}` | Delete workflow |
+
+### Chat & Execution
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/chat/execute` | Execute workflow with query |
+| GET | `/api/chat/history/{workflow_id}` | Get chat history |
+| DELETE | `/api/chat/history/{workflow_id}` | Clear chat history |
+| GET | `/api/chat/logs/{execution_id}` | Get execution logs |
+
+---
+
+## ⚙️ Environment Variables
+
+### Backend (.env)
+
+```env
+# Required
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+
+# Storage (defaults shown)
+CHROMA_PERSIST_DIR=./chroma_data
+UPLOAD_DIR=./uploads
+```
+
+---
+
+## 🎯 Usage Guide
+
+### 1. Create Account & Login
+Register a new account or login with existing credentials.
+
+### 2. Create a Workflow
+- Click **"New Workflow"** from Dashboard
+- Drag components from the left panel onto the canvas:
+  - **User Query** → Entry point
+  - **Knowledge Base** → For RAG (optional)
+  - **LLM Engine** → AI processing
+  - **Output** → Display results
+
+### 3. Connect Components
+Draw connections between nodes to define the flow:
+```
+User Query → Knowledge Base → LLM Engine → Output
+```
+or without KB:
+```
+User Query → LLM Engine → Output
+```
+
+### 4. Configure Components
+Click a node to open its configuration:
+- **LLM Engine**: Set Gemini API key, model, custom prompt, temperature, enable web search
+- **Knowledge Base**: Upload PDFs for RAG
+
+### 5. Build & Chat
+- Click **"Build Stack"** to validate the workflow
+- Click **"Chat with Stack"** to open the chat interface
+- Ask questions and get AI-powered responses!
+
+---
+
+## 📜 License
+
+MIT License
