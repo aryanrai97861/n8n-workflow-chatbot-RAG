@@ -1,5 +1,5 @@
-// Use relative URL in production (served through nginx proxy), localhost in dev
-const API_BASE_URL = import.meta.env.PROD ? '/api' : 'http://localhost:8000/api';
+// Use environment variable or fall back to localhost in dev
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 // Helper to get auth headers
 const getAuthHeaders = () => {
