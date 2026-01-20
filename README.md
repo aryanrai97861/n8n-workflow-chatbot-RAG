@@ -227,7 +227,7 @@ cp .env.example .env
 #   BRAVE_API_KEY=optional
 
 # Run the server (with hot reload)
-python main.py
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Backend runs at: **http://localhost:8000**
